@@ -20,11 +20,17 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from matplotlib import colormaps
-from PIL import Image
+from PIL import Image, ImageOps
 
 import config
 
 IMAGE_EXTS = {".jpg", ".jpeg", ".png", ".bmp", ".webp"}
+
+
+def open_image(path):
+    """Open a photo upright, the way the app does: phone photos often store their
+    rotation in an EXIF tag instead of rotating the pixels."""
+    return ImageOps.exif_transpose(Image.open(path)).convert("RGB")
 
 
 def parse_args():
@@ -62,7 +68,7 @@ def predict(model, items, batch_size):
     tf = config.eval_transform()
     probs = []
     for start in range(0, len(items), batch_size):
-        batch = [tf(Image.open(p).convert("RGB")) for p, _ in items[start:start + batch_size]]
+        batch = [tf(open_image(p)) for p, _ in items[start:start + batch_size]]
         probs.append(F.softmax(model(torch.stack(batch)), dim=1))
     return torch.cat(probs).numpy()
 
@@ -166,7 +172,7 @@ def save_gradcam_examples(model, items, y, pred, probs, unsure, k, title, path):
                     ax.text(0.5, 0.5, f"no {label} answers", ha="center", va="center")
                 continue
             i = idx[c]
-            img = Image.open(items[i][0]).convert("RGB")
+            img = open_image(items[i][0])
             ax.imshow(overlay(img, gradcam(model, img)))
             ax.set_title(f"{label}: {config.CLASSES[y[i]]}\n-> {config.CLASSES[pred[i]]} "
                          f"({probs[i].max():.0%}){', not sure' if unsure[i] else ''}",
@@ -193,8 +199,8 @@ def evaluate_set(model, name, root, args):
     save_gradcam_examples(model, items, y, pred, probs, unsure, args.gradcam, name,
                           config.REPORTS_DIR / f"gradcam_{slug}.png")
 
-    print(f"  {m['n']} images, accuracy {m['accuracy']:.1%}, "
-          f"not sure {m['not_sure_rate']:.1%}, accuracy when answering {m['answered_accuracy']:.1%}")
+    print(f"  {m['n']} images, accuracy {pct(m['accuracy'])}, "
+          f"not sure {pct(m['not_sure_rate'])}, accuracy when answering {pct(m['answered_accuracy'])}")
     print(f"  confusion matrix (rows = true, columns = predicted, order {config.CLASSES}):")
     for c, row in zip(config.CLASSES, m["cm"]):
         print(f"    {c:>8}  {row.tolist()}")
@@ -222,7 +228,7 @@ def summary(results, model_path):
             lambda m, c=c: f"{pct(m['per_class'][c]['precision'])} / {pct(m['per_class'][c]['recall'])}")
     row('"Not sure" rate', lambda m: pct(m["not_sure_rate"]))
     row("Accuracy when it answers", lambda m: pct(m["answered_accuracy"]))
-    return (f"Model: `{model_path.name}` · \"not sure\" when confidence < {config.THRESHOLD:.0%} "
+    return (f"Model: `{model_path.name}`, \"not sure\" when confidence < {config.THRESHOLD:.0%} "
             f"or the top two are within {config.MARGIN:.0%}\n\n" + "\n".join(rows) +
             "\n\nStore photos were taken by us and never used for training, so they are the "
             "real-world score.")
