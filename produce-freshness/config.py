@@ -60,6 +60,24 @@ def build_model(pretrained=False):
     return m
 
 
+# ---------------------------------------------------------------
+# Preprocessing: one definition for train.py's validation, evaluate.py and app.py
+# (train-time augmentation stays in train.py)
+# ---------------------------------------------------------------
+def eval_transform():
+    """PIL RGB image -> normalised tensor of shape (3, IMG_SIZE, IMG_SIZE).
+
+    Squashes to IMG_SIZE x IMG_SIZE (no crop), same as the leaf app.
+    """
+    from torchvision import transforms
+
+    return transforms.Compose([
+        transforms.Resize((IMG_SIZE, IMG_SIZE)),
+        transforms.ToTensor(),
+        transforms.Normalize(MEAN, STD),
+    ])
+
+
 if __name__ == "__main__":
     for name in ["CLASSES", "IMG_SIZE", "MEAN", "STD", "SEED", "THRESHOLD", "MARGIN",
                  "DATA_DIR", "SPLITS_DIR", "STORE_TEST_DIR", "REPORTS_DIR", "MODEL_PATH"]:
