@@ -25,3 +25,6 @@ datasets/
 # OS / editor clutter
 .DS_Store
 Thumbs.db
+
+# Produce freshness: generated reports (plots, Grad-CAM images)
+produce-freshness/reports/
