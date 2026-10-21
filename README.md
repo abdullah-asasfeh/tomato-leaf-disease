@@ -27,7 +27,8 @@ Spider mites, Target spot, Yellow leaf curl virus, Mosaic virus, Healthy.
 
 ## Run locally
 
-Requires Python 3.10–3.12.
+Requires Python 3.12 or newer (the pinned numpy needs 3.12+). Deploying to Streamlit Cloud
+needs Python 3.12+ there too.
 
 ```bash
 python -m venv .venv
