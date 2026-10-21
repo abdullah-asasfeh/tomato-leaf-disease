@@ -3,6 +3,8 @@
 Tomato Leaf Disease Classifier (EfficientNet-B0 + Grad-CAM) — Streamlit
 Author: Abdullah Asasfeh
 """
+from pathlib import Path
+
 import numpy as np
 import streamlit as st
 import torch
@@ -16,6 +18,7 @@ st.set_page_config(page_title="مشخّص أمراض أوراق البندورة
                    layout="centered", initial_sidebar_state="collapsed")
 
 GITHUB_URL = "https://github.com/abdullah-asasfeh/tomato-leaf-disease"
+MODEL_PATH = Path(__file__).parent / "best_field_model.pt"   # يشتغل من أي مجلد
 
 # ---------------------------------------------------------------
 # 0) التصميم
@@ -112,7 +115,7 @@ tf = transforms.Compose([
 def load_model():
     m = models.efficientnet_b0(weights=None)
     m.classifier[1] = nn.Linear(m.classifier[1].in_features, len(CLASS_NAMES))
-    m.load_state_dict(torch.load("best_field_model.pt", map_location="cpu"))
+    m.load_state_dict(torch.load(MODEL_PATH, map_location="cpu"))
     m.eval()
     saved = {}
 
