@@ -1,0 +1,3 @@
+-r ../requirements.txt
+# Only needed for prepare_data.py (reads the dataset parquet file)
+pyarrow==26.0.0
