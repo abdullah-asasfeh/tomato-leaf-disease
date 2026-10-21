@@ -1,0 +1,27 @@
+# Python virtual environments
+.venv/
+venv/
+env/
+
+# Python cache files
+__pycache__/
+*.py[cod]
+
+# Secrets and API keys (never commit these)
+.env
+.env.*
+.streamlit/secrets.toml
+
+# Datasets and large archives (keep these out of the repo)
+data/
+dataset/
+datasets/
+*.zip
+*.tar.gz
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS / editor clutter
+.DS_Store
+Thumbs.db
