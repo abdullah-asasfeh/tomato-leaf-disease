@@ -42,7 +42,8 @@ EXPECTED_BYTES = 149_944_018
 RAW_FILE = config.RAW_DIR / "khatun_raw.parquet"
 SOURCE_LABELS = {0: "fresh", 1: "rotten"}   # from the dataset card: 0 = Fresh, 1 = Rotten
 
-MANIFEST = config.ROOT / "splits.csv"       # small, committed: lets us check we have the same split
+MANIFEST = config.ROOT / "splits.csv"       # small, committed: lets us check we have the same split.
+                                            # Only a default run writes it; test runs write theirs into --out.
 FRACTIONS = {"train": 0.70, "val": 0.15, "test": 0.15}
 MIN_SIDE = 64          # smaller images are dropped
 MAX_SIDE = 1024        # larger images are shrunk on save (training uses 224 anyway)
@@ -176,9 +177,22 @@ def split_groups(items):
     return kept, n_mixed
 
 
-def save(items, out):
-    if out.exists():
-        shutil.rmtree(out)
+def clear_output(out):
+    """Delete a previous split before writing a new one, but only if the folder holds
+    nothing except our split folders (and our manifest), so a wrong --out can't wipe
+    anything else."""
+    if not out.exists():
+        return
+    ours = set(config.SPLITS) | {"splits.csv"}
+    other = sorted(c.name for c in out.iterdir() if c.name not in ours)
+    if other:
+        raise SystemExit(f"Refusing to delete {out}: it contains {other}, which this script "
+                         f"didn't create. Pick an empty folder for --out.")
+    shutil.rmtree(out)
+
+
+def save(items, out, manifest):
+    clear_output(out)
     for split in config.SPLITS:
         for cls in config.CLASSES:
             (out / split / cls).mkdir(parents=True, exist_ok=True)
@@ -193,7 +207,7 @@ def save(items, out):
         rows.append({"file": f"{it['split']}/{it['class']}/{name}", "source_index": it["source_index"],
                      "class": it["class"], "split": it["split"], "group": it["group"],
                      "dhash": it["dhash"].tobytes().hex()})
-    with open(MANIFEST, "w", newline="", encoding="utf-8") as f:
+    with open(manifest, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=list(rows[0]))
         writer.writeheader()
         writer.writerows(rows)
@@ -226,7 +240,9 @@ def main():
     n_groups = len({it["group"] for it in items})
     items, n_mixed = split_groups(items)
     dropped["near-duplicates with mixed labels"] = n_mixed
-    save(items, args.out)
+    default_run = args.raw_file == RAW_FILE and args.out == config.SPLITS_DIR
+    manifest = MANIFEST if default_run else args.out / "splits.csv"
+    save(items, args.out, manifest)
     leaks = check_no_leak(items)
 
     print("Dropped: " + ", ".join(f"{v} {k}" for k, v in dropped.items()))
@@ -238,7 +254,7 @@ def main():
                   for c in config.CLASSES]
         print(f"{split:8}" + "".join(f"{n:8d}" for n in counts) + f"{sum(counts):8d}")
     print(f"\nNear-duplicate pairs across splits: {leaks}")
-    print(f"Saved to {args.out}\nManifest: {MANIFEST}")
+    print(f"Saved to {args.out}\nManifest: {manifest}")
     if leaks:
         raise SystemExit("Leak between splits: near-duplicates ended up in different splits")
 
